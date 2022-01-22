@@ -2,7 +2,6 @@
 require 'uri'
 require 'net/http'
 require 'openssl'
-require 'pry'
 require 'json'
 require 'google/apis/sheets_v4'
 require 'googleauth'
