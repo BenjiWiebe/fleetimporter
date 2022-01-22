@@ -3,4 +3,7 @@ Description=Import fleet data from Samsara into Google Sheets
 
 [Service]
 Type=oneshot
+User=unprivilegeduser
+Group=unprivilegedgroup
+WorkingDirectory=/path/to/
 ExecStart=/path/to/fleetimporter.rb
