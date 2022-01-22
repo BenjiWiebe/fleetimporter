@@ -1,0 +1,9 @@
+[Unit]
+Description=Import fleet data from Samsara into Google Sheets
+
+[Timer]
+OnBootSec=10min
+OnCalendar=*-*-* 05:30:00 America/Chicago
+
+[Install]
+WantedBy=timers.target

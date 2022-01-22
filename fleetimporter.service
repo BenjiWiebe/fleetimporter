@@ -1,0 +1,6 @@
+[Unit]
+Description=Import fleet data from Samsara into Google Sheets
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/fleetimporter.rb
