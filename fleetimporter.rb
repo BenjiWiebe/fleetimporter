@@ -3,20 +3,32 @@ require 'uri'
 require 'net/http'
 require 'openssl'
 require 'json'
-require 'google/apis/sheets_v4'
-require 'googleauth'
-require 'googleauth/stores/file_token_store'
 require 'fileutils'
 require 'yaml'
+require 'time'
 
 CFG_FILE = "fleetimporter.config"
+USING_GOOGLE = false
+
+if USING_GOOGLE
+  require 'google/apis/sheets_v4'
+  require 'googleauth'
+  require 'googleauth/stores/file_token_store'
+  OOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
+  APPLICATION_NAME = "Samsara Google Sheets integration".freeze
+  CREDENTIALS_PATH = "credentials.json".freeze
+  TOKEN_PATH = "token.yaml".freeze
+  SCOPE = Google::Apis::SheetsV4::AUTH_SPREADSHEETS
+end
+
 
 cfg = YAML.load(File.open(CFG_FILE).read)
 SAMSARA_AUTH_TOKEN = cfg["samsara_auth_token"]
 SHEET_ID = cfg["sheet_id"]
 SPECIAL_SHEET_NAME = cfg["special_sheet_name"]
+XMLFILENAME = cfg["xml_file_name"]
 
-if SHEET_ID.nil? || SPECIAL_SHEET_NAME.nil? || SAMSARA_AUTH_TOKEN.nil?
+if SHEET_ID.nil? || SPECIAL_SHEET_NAME.nil? || SAMSARA_AUTH_TOKEN.nil? || XMLFILENAME.nil?
   puts "All configuration options must be present."
   exit 1
 end
@@ -46,14 +58,6 @@ def get_all_equipment
   return equipment
 end
 
-OOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
-APPLICATION_NAME = "Samsara Google Sheets integration".freeze
-CREDENTIALS_PATH = "credentials.json".freeze
-# The file token.yaml stores the user's access and refresh tokens, and is
-# created automatically when the authorization flow completes for the first
-# time.
-TOKEN_PATH = "token.yaml".freeze
-SCOPE = Google::Apis::SheetsV4::AUTH_SPREADSHEETS
 
 ##
 # Ensure valid credentials, either by restoring from the saved credentials
@@ -96,12 +100,36 @@ def update_spreadsheet(service, newvalues)
   response = service.batch_update_values(SHEET_ID, updreq)
 end
 
-# Initialize the API
-service = Google::Apis::SheetsV4::SheetsService.new
-service.client_options.application_name = APPLICATION_NAME
-service.authorization = authorize_googleapi
+if USING_GOOGLE
+  # Initialize the API
+  service = Google::Apis::SheetsV4::SheetsService.new
+  service.client_options.application_name = APPLICATION_NAME
+  service.authorization = authorize_googleapi
+end
 
 all = get_all_equipment
-new_cells = all.map {|x| [x.name, x.hours, x.kms] }
-clear_spreadsheet(service)
-update_spreadsheet(service, new_cells)
+
+if USING_GOOGLE
+  new_cells = all.map {|x| [x.name, x.hours, x.kms] }
+  clear_spreadsheet(service)
+  update_spreadsheet(service, new_cells)
+else
+  File.open(XMLFILENAME, 'w') do |f|
+    f.print '<?xml version="1.0"?><data><vehicles>'
+    all.map do |x|
+      f.print "<vehicle><name>#{x.name}</name><hours>#{x.hours}</hours><kms>#{x.kms}</kms></vehicle>"
+    end
+    f.print '</vehicles><updated>'
+    f.print Time.now.iso8601
+    f.print '</updated><googletime_updated>'
+
+    ENV['TZ'] = 'US/Central'
+    google_day = (DateTime.now - Time.local(1899,12,30).to_datetime).to_f
+    if Time.now.dst?
+      google_day += 0.04167
+    end
+    f.print google_day
+
+    f.print '</googletime_updated></data>'
+  end
+end
