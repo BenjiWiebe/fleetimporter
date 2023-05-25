@@ -49,9 +49,9 @@ def get_all_equipment
 
   equipment = []
   data.each do |e|
-	kms = (e["gpsOdometerMeters"]["value"].to_f / 1000).round(1)
-	hours = (e["gatewayEngineSeconds"]["value"].to_f / 60 / 60).round(1)
-	name = e["name"]
+	kms = (e["gpsOdometerMeters"]["value"].to_f / 1000).round(1) rescue nil
+	hours = (e["gatewayEngineSeconds"]["value"].to_f / 60 / 60).round(1) rescue nil
+	name = e["name"] rescue nil
 	#puts "#{name}: #{hours} hours, #{kms} km."
 	equipment << OpenStruct.new({name:name, hours:hours, kms:kms})
   end
